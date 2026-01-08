@@ -1,0 +1,67 @@
+services:
+
+  db:
+    image: postgres:11
+    container_name: conduit_database
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+    networks:
+      - conduit_network
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  backend:
+    build:
+      context: ./conduit-backend
+      dockerfile: backend.Dockerfile
+    container_name: backend_conduit
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    networks:
+      - conduit_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/admin/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./conduit-frontend
+      dockerfile: frontend.Dockerfile
+    container_name: frontend_conduit
+    restart: unless-stopped
+    ports:
+      - "8282:80"
+    networks:
+      - conduit_network
+    depends_on:
+      backend:
+        condition: service_healthy
+
+
+
+volumes:
+  postgres_data:
+    name: postgres_data
+
+networks:
+  conduit_network:
+    driver: bridge
+
+
+    
