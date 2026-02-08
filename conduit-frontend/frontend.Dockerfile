@@ -1,4 +1,3 @@
-
 # STAGE 1: BUILDER - install all dependencies and compile the frontend application (Angular). 
 
 FROM node:20 AS builder
@@ -13,17 +12,21 @@ RUN npm install
 COPY . .
 
 # Execute the production build command (Angular's compiler).
+# The resulting production optimized files are usually placed in a '/app/dist', useful for stage 2
 RUN npm run build --prod
-# The resulting production optimized files are usually placed in a '/app/dist' subfolder.
 
 
 
-# STAGE 2: RUNTIME - Use a minimal web server image (Nginx) and only copies the necessary files
+
+# STAGE 2: RUNTIME - Use a minimal web server image (Nginx) and only copies the necessary files. Functions as static file server
 
 FROM nginx:alpine
 
 # Copy the static build artifacts from the previous stage
 COPY --from=builder /app/dist/angular-conduit /usr/share/nginx/html
+
+# Copy the custom nginx config and bake it in the image
+COPY nginx-frontend.conf /etc/nginx/conf.d/default.conf
 
 # Nginx's default port
 EXPOSE 80

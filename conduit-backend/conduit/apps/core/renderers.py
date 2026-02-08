@@ -10,6 +10,12 @@ class ConduitJSONRenderer(JSONRenderer):
     pagination_object_count = 'count'
 
     def render(self, data, media_type=None, renderer_context=None):
+        # If data is None (happens on delete) return an empty string, to avoid the render to wrapping on None 
+        # and sending a string to the user in a Http status 204, which cannot have a bosy,
+        # and thus avoid a subsequent 500 Internal server error (which I had when trying to delete an article)
+        if data is None:
+           return b'' # Return an empty byte string
+
         if data.get('results', None) is not None:
             return json.dumps({
                 self.pagination_object_label: data['results'],

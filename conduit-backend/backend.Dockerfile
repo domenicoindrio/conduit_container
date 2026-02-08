@@ -33,9 +33,9 @@ COPY --from=builder /usr/local/lib/python3.6/site-packages/ /usr/local/lib/pytho
 # 3. COPY CODE: Copy the application code
 COPY --from=builder /app /app
 
-# Install only necessary runtime dependencies (in this case the PostgreSQL client)
+# Install only necessary runtime dependencies (in this case the PostgreSQL client and curl)
 RUN apt-get update && \
-    apt-get install -y postgresql-client && \
+    apt-get install -y postgresql-client curl && \
     rm -rf /var/lib/apt/lists/*
 
 RUN chmod +x /app/entrypoint.sh

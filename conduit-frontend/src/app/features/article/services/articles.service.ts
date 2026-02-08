@@ -21,7 +21,7 @@ export class ArticlesService {
     });
 
     return this.http.get<{ articles: Article[]; articlesCount: number }>(
-      "/articles" + (config.type === "feed" ? "/feed" : ""),
+      "/articles" + (config.type === "feed" ? "/feed/" : ""),// added a trailing slash to fix the Your feed not working
       { params },
     );
   }
@@ -38,7 +38,7 @@ export class ArticlesService {
 
   create(article: Partial<Article>): Observable<Article> {
     return this.http
-      .post<{ article: Article }>("/articles/", { article: article })
+      .post<{ article: Article }>("/articles", { article: article })// removed the trailing slash to fix Create article
       .pipe(map((data) => data.article));
   }
 

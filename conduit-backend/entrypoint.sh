@@ -21,6 +21,7 @@ fi
 
 python manage.py createsuperuser --no-input --username "$DJANGO_SUPERUSER_USERNAME" --email "$DJANGO_SUPERUSER_EMAIL" || true
 
-# Start server based on .env value or overridden at runtime
+# Start server
 echo "Starting Gunicorn for production..."
-gunicorn conduit.wsgi:application --bind 0.0.0.0:8000 --workers 3
+gunicorn conduit.wsgi:application --bind 0.0.0.0:8000 --access-logfile - --error-logfile - --workers 3 
+# --access-logfile - --error-logfile - together with PYTHONUNBUFFERED=1  unbuffers the logs and "forces" Gunicorn to send the outputs/logs to the docker console

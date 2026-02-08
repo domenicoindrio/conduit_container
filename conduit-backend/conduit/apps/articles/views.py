@@ -14,6 +14,7 @@ from .serializers import ArticleSerializer, CommentSerializer, TagSerializer
 class ArticleViewSet(mixins.CreateModelMixin, 
                      mixins.ListModelMixin,
                      mixins.RetrieveModelMixin,
+                     mixins.DestroyModelMixin,# added to make the destroy function work
                      viewsets.GenericViewSet):
 
     lookup_field = 'slug'
@@ -104,6 +105,17 @@ class ArticleViewSet(mixins.CreateModelMixin,
         serializer.save()
 
         return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # missing destroy view added
+    def destroy(self, request, slug):
+        try:
+            instance = Article.objects.get(slug=slug)
+        except Article.DoesNotExist:
+            raise NotFound('An article with this slug does not exist.')
+
+        instance.delete()
+
+        return Response(None, status=status.HTTP_204_NO_CONTENT)
 
 
 class CommentsListCreateAPIView(generics.ListCreateAPIView):

@@ -23,8 +23,9 @@ services:
       dockerfile: backend.Dockerfile
     container_name: backend_conduit
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    # Ports removed, nginx handles the communication: reverse proxy
+    # ports:
+    #   - "8000:8000"
     env_file:
       - .env
     networks:
@@ -34,7 +35,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-    
+      start_period: 60s # give som,e time so that the entrypoint.sh is done
     depends_on:
       db:
         condition: service_healthy
@@ -45,14 +46,28 @@ services:
       dockerfile: frontend.Dockerfile
     container_name: frontend_conduit
     restart: unless-stopped
-    ports:
-      - "8282:80"
+    # Ports removed, nginx handles the communication: reverse proxy
+    # ports:
+    #   - "8282:80"
     networks:
       - conduit_network
     depends_on:
       backend:
         condition: service_healthy
 
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: nginx.Dockerfile
+    container_name: nginx_gateway
+    restart: unless-stopped
+    ports:
+      - "8282:80" # only port exposed
+    networks:
+      - conduit_network
+    depends_on:
+      - backend
+      - frontend 
 
 
 volumes:
@@ -62,6 +77,3 @@ volumes:
 networks:
   conduit_network:
     driver: bridge
-
-
-    

@@ -1,0 +1,36 @@
+# Git
+.git
+.gitignore
+.vscode/
+.editorconfig
+
+# macOS junk
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Python junk
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+.pytest_cache/
+
+# Environments and Secrets
+.env
+.env.*
+
+# Database
+*.sqlite3
+
+# IDEs
+.vscode/
+.idea/
+
+# Documentation
+*.md
+docs/
+LICENSE
+*.png
