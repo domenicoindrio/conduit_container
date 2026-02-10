@@ -39,7 +39,7 @@ ssh <user>@<remote_ip>
 
 ### Clone the Repository
 ```bash
-git clone git@github.com: # here comese the repo link
+git clone git@github.com:domenicoindrio/conduit_container.git
 cd conduit/
 ```
 ---
@@ -58,6 +58,7 @@ docker compose up -d --build
 Once the containers start successfully, your Conduit site will be reachable at:
 - http://<remote_address>:8282
 
+---
 
 ## Usage
 This section covers useful information and tips for interacting with this project:
@@ -71,7 +72,7 @@ This module imports all configurations from the default settings file and overwr
 ### Backend - Admin access
 A superuser is automatically created via the `entrypoint.sh` script using the credentials provided in the `.env` file.  
 
-, the Django Admin Panel is **not exposed** to the public. Only the Nginx gateway is reachable, minimizing attack surface.
+By choice, the Django Admin Panel is **not exposed** to the public. Only the Nginx gateway is reachable, minimizing attack surface.
 
 To manage the backend securely, one of those option could be choosed:
 - **SSH Tunneling**: Map the backend to the VM's loopback interface (change the port binding in `docker-compose.yml` to 127.0.0.1:8000) and establish an encrypted bridge from your local machine: `ssh -i <key> -L 9000:127.0.0.1:8000 user@remote_server`. After that the admin panel is reachbar on local machine at http://localhost:9000/admin/
@@ -92,6 +93,10 @@ To mantain a secure environment:
 ```bash
 chmod 600 .env
 ```
+Alternatively, for more security on a shared host, restrict directly the whole project folder to the current user:
+```bash
+chmod -R 700 ~/conduit_container
+```
 
 ---
 
@@ -105,7 +110,7 @@ The stack uses **Docker Healrtchecks** to ensure a clean startup sequence:
 ---
 
 ### Debugging & Maintenance: Logs
-Gunicorn and Python are configured to run **unbuffered** to ensure real time log visibility (`PYTHONUNBUFFERED=1` in `.env` file and `--access-logfile - --error-logfile -` in entrypoint script).
+Gunicorn and Python are configured to run **unbuffered** to ensure real time log visibility (`PYTHONUNBUFFERED=1` in `.env` file and `--access-logfile - --error-logfile -` in entrypoint script).  
 You can monitor the stack with the following commands:
 
 - Follow logs in real time:
