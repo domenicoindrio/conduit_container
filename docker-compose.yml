@@ -24,8 +24,9 @@ services:
     container_name: backend_conduit
     restart: unless-stopped
     # Ports removed, nginx handles the communication: reverse proxy
+    # Uncomment following for SSH Tunneling for admin access
     # ports:
-    #   - "8000:8000"
+    #   - "127.0.0.1:8000:8000"   
     env_file:
       - .env
     networks:

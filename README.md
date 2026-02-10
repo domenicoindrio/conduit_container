@@ -70,8 +70,17 @@ This module imports all configurations from the default settings file and overwr
 
 ### Backend - Admin access
 A superuser is automatically created via the `entrypoint.sh` script using the credentials provided in the `.env` file.  
-The admin panel can be reached at:  
-http://<remote_address>:8282/admin
+
+, the Django Admin Panel is **not exposed** to the public. Only the Nginx gateway is reachable, minimizing attack surface.
+
+To manage the backend securely, one of those option could be choosed:
+- **SSH Tunneling**: Map the backend to the VM's loopback interface (change the port binding in `docker-compose.yml` to 127.0.0.1:8000) and establish an encrypted bridge from your local machine: `ssh -i <key> -L 9000:127.0.0.1:8000 user@remote_server`. After that the admin panel is reachbar on local machine at http://localhost:9000/admin/
+- **IP whitelisting**: Update the Nginx configuration with the `/admin/` location and `allow <your_local_ip>; deny all;`as rules
+- **URL Obfuscating**: Modify the Django admin path within the `url.py` to a secret string and update the Nginx proxy pass accordingly.
+
+> [!IMPORTANT]  
+> To mantain a secure and isolated environment, this orchestration does't use bind mounts for configuration files. Any changes made to the `nginx.conf`, `docker-compose.yml`, or `.env` files require a full rebuild to take effect.  
+> To apply changes run `docker compose up -d --build` to correctly *bake* them into the images.
 
 ---
 
@@ -155,6 +164,8 @@ This results in two critical advantages:
 
 ## Data Persistency 
 The database data is stored and managed in a **Docker volume** (`postgre_data`), ensuring that articles, users, and comments persist across restarts, container recreation, or updates.
+
+---
 
 ## Future Hardening - Security Note on Heaalthchecks
 In this Project I utilized `curl` for service orchestration and health monitoring. Future iterations may replace curl with a Python-based healtcheck script to further reduce attack vectors and surface to a potential intruder.
