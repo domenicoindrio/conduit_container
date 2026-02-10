@@ -40,7 +40,7 @@ ssh <user>@<remote_ip>
 ### Clone the Repository
 ```bash
 git clone git@github.com:domenicoindrio/conduit_container.git
-cd conduit/
+cd conduit_container/
 ```
 ---
 
