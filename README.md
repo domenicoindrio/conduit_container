@@ -147,7 +147,7 @@ docker compose down -v
 
 ## Architecture 
 ### Overview
-The application is orchestrated into four different services:
+The application is orchestrated into three different services:
 1. Database: PostgreSQL with persistent volume mapping.
 2. Backend: Django REST Framework powered by Gunicorn.
 3. Frontend and Gateway: Angular application served by Nginx, which also acts as the primary Reverse Proxy and entrypoint.
@@ -174,5 +174,5 @@ The database data is stored and managed in a **Docker volume** (`postgre_data`),
 
 ---
 
-## Future Hardening - Security Note on Heaalthchecks
+## Future Hardening - Security Note on Healthchecks
 In this Project I utilized `curl` for service orchestration and health monitoring. Future iterations may replace curl with a Python-based healtcheck script to further reduce attack vectors and surface to a potential intruder.
