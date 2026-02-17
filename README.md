@@ -11,7 +11,7 @@ While the core stack remains true to the original, minor adjustments were made t
 ## Table of Contents
 - [Quickstart](#quickstart)
 - [Usage](#usage)
-    - [Backend - Custom Django Settings Module](#backend---custom-django-settings-module)
+    - [Backend - Django Configuration](#backend---django-configuration)
     - [Backend - Admin access](#backend---admin-access)
     - [Environment file and Secret Management](#env-file-and-secret-management)
     - [Startup Behavior](#startup-behavior)
@@ -19,7 +19,7 @@ While the core stack remains true to the original, minor adjustments were made t
     - [Debugging & Maintenance: Cleanup](#debugging--maintenance-cleanup)
 - [Architecture](#architecture)
     - [Overview](#overview)
-    - [Nginx - Gateway and reverse proxy](#nginx---gateway-and-reverse-proxy)
+    - [Nginx - Integrated Gateway and Reverse Proxy](#nginx---integrated-gateway-and-reverse-proxy)
     - [Multi-Stage Images](#multi-stage-images)
 - [Data Persistency](#data-persistency)
 - [Future Hardening - Security Note on Heaalthchecks](#future-hardening---security-note-on-heaalthchecks)
@@ -27,11 +27,12 @@ While the core stack remains true to the original, minor adjustments were made t
 ## Quickstart
 ### Prerequisites
 - [Docker](https://docs.docker.com/engine/install/) and [Docker Compose](https://docs.docker.com/compose/install/) 
-- SSH access to your target environment
+- Optional: SSH access to your remote target environment
 
 ---
 
-### Connect to the Remote Machine
+### Optional Step: Connect to the Remote Machine
+If deploying remotely:
 ```bash
 ssh <user>@<remote_ip>
 ```
@@ -45,10 +46,14 @@ cd conduit_container/
 ---
 
 ### Configure the `.env` File
-Copy the [provided template](./config_template.env) and update the placeholders to your needs (especially passwords and `SECRET_KEY`):
+Copy the [provided template](./config_template.env) and update the placeholders to your needs: 
 ```bash
 cp config_template.env .env
 ```
+> [!IMPORTANT]  
+> **DO NOT** use default passwords or the example `SECRET_KEY` in production. Additionally avoid using common usernames like `admin`, `root`, or `administrator` for the `DJANGO_SUPERUSER_USERNAME`. Using a unique, non-obvious username adds a layer of protection against automated brute-force attacks that target standard admin accounts.   
+> Change these values in your `.env` file before running the orchestration.
+
 ---
 
 ### Start the Conduit Site
@@ -56,16 +61,15 @@ cp config_template.env .env
 docker compose up -d --build
 ```
 Once the containers start successfully, your Conduit site will be reachable at:
-- http://<remote_address>:8282
+- http://<your_ip>:8282
 
 ---
 
 ## Usage
 This section covers useful information and tips for interacting with this project:
 
-### Backend - Custom Django Settings Module
-To leave the original settings unscathed, a custom Django settings module was created: `test_docker.py`.
-This module imports all configurations from the default settings file and overwrites specific options (such as database connections and security allowed hosts) required for the Docker environment.
+### Backend - Django Configuration
+All configurations are handled within the main `settings.py` file, utilizing environment variables for containerized settings. This ensures a single *source of truth* for configuration.
 
 ---
 
@@ -75,8 +79,8 @@ A superuser is automatically created via the `entrypoint.sh` script using the cr
 By choice, the Django Admin Panel is **not exposed** to the public. Only the Nginx gateway is reachable, minimizing attack surface.
 
 To manage the backend securely, one of those option could be choosed:
-- **SSH Tunneling**: Map the backend to the VM's loopback interface (change the port binding in `docker-compose.yml` to 127.0.0.1:8000) and establish an encrypted bridge from your local machine: `ssh -i <key> -L 9000:127.0.0.1:8000 user@remote_server`. After that the admin panel is reachbar on local machine at http://localhost:9000/admin/
-- **IP whitelisting**: Update the Nginx configuration with the `/admin/` location and `allow <your_local_ip>; deny all;`as rules
+- **SSH Tunneling**: Map the backend to the VM's loopback interface (change the port binding in `docker-compose.yml` to 127.0.0.1:8000:8000) and establish an encrypted bridge from your local machine: `ssh -i <key> -L 9000:127.0.0.1:8000 user@remote_server`. After that the admin panel will be reachable on local machine at http://localhost:9000/admin/
+- **IP whitelisting**: Configure the Nginx `/admin/` location block with `allow <your_local_ip>;` and `deny all;` rules to restrict access to authorized IP only.
 - **URL Obfuscating**: Modify the Django admin path within the `url.py` to a secret string and update the Nginx proxy pass accordingly.
 
 > [!IMPORTANT]  
@@ -104,8 +108,7 @@ chmod -R 700 ~/conduit_container
 The stack uses **Docker Healrtchecks** to ensure a clean startup sequence:
 - The `backend` waits for the Postgres `db` to be *Healthy* before running migrations.
 - The `entrypoint.sh` script automatically handles migrations, static file collection, and **superuser creation**.
-- The `frontend` service waits for the `backend` to be *Healthy* before becoming available. 
-- The `nginx` **Gateway** finalizes the sequence by orchestrating traffic between the ready services.
+- The `frontend` service (the Gateway) waits for the `backend` to be *Healthy* before becoming available and opening the port to external traffic. 
 
 ---
 
@@ -147,15 +150,14 @@ docker compose down -v
 The application is orchestrated into four different services:
 1. Database: PostgreSQL with persistent volume mapping.
 2. Backend: Django REST Framework powered by Gunicorn.
-3. Frontend: Angular application served by Nginx.
-4. Gateway: A dedicated Nginx Reverse Proxy serving as the single entry point.
+3. Frontend and Gateway: Angular application served by Nginx, which also acts as the primary Reverse Proxy and entrypoint.
 
 ---
 
-### Nginx - Gateway and Reverse Proxy
-I implemented a centralized Nginx gateway for two critical reasons:
-- **Traffic routing (CORS issues solution)**: directs `/api` requests to the Django backend and all other traffic to the frontend. This allows both services to share the same origin, eliminating CORS issues.
-- **Security layer**: Nginx acts as the only container exposed to the host/public internet, shielding the application and database from direct external access.
+### Nginx - Integrated Gateway and Reverse Proxy
+I have integrated a Reverse Proxy logic directly into the Frontend's Nginx configuration. This streamlines the architecture while maintaining:
+- **Traffic Routing (CORS solution)**: Directs `/api` requests to the Django backend and all other traffic to the static Angular files. This ensures both share the same origin, eliminating CORS issues.
+- **Security Layer**: The Frontend container is the only one exposed to the public internet, shielding the backend and database from direct external access.
 
 ---
 

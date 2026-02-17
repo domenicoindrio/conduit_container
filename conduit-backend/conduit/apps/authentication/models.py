@@ -42,15 +42,20 @@ class UserManager(BaseUserManager):
         Superuser powers means that this use is an admin that can do anything
         they want.
         """
-        import os
-        print('Reading superuser password from env')
-        SUPER_USER_PASSWORD = os.environ.get(
-            'DJANGO_SUPERUSER_PASSWORD', '')
-        if len(SUPER_USER_PASSWORD) >= 4:
-            password = SUPER_USER_PASSWORD
-        else:
-            print('Setting default password since no superuser password was provided.')
-            password = 'securepass'
+        # import os
+        # print('Reading superuser password from env')
+        # SUPER_USER_PASSWORD = os.environ.get(
+        #     'DJANGO_SUPERUSER_PASSWORD', '')
+        # if len(SUPER_USER_PASSWORD) >= 4:
+        #     password = SUPER_USER_PASSWORD
+        # else:
+        #     print('Setting default password since no superuser password was provided.')
+        #     password = 'securepass'
+
+        # Check if the user already exists to avoid big verbose Traceback error nin the logs
+        if self.filter(username=username).exists():
+            print(f"Superuser already exists. Skipping save.")
+            return self.get(username=username)
 
         user = self.create_user(username, email, password)
         user.is_superuser = True

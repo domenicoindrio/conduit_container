@@ -24,13 +24,10 @@ FROM python:3.6-slim
 
 WORKDIR /app
 
-# 1. COPY BINARIES: Copy executables into a location in the PATH (needed for gunicorn to late strt successfully from the entrypoint)
-COPY --from=builder /usr/local/bin/ /usr/local/bin/
+# 1. COPY BINARIES and PACKAGES: Copy executables and the installed Python packages (libraries)
+COPY --from=builder /usr/local/ /usr/local/
 
-# 2. COPY PACKAGES: Copy the installed Python packages (the libraries)
-COPY --from=builder /usr/local/lib/python3.6/site-packages/ /usr/local/lib/python3.6/site-packages/
-
-# 3. COPY CODE: Copy the application code
+# 2. COPY CODE: Copy the application code
 COPY --from=builder /app /app
 
 # Install only necessary runtime dependencies (in this case the PostgreSQL client and curl)
