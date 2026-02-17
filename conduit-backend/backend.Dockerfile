@@ -1,6 +1,6 @@
 # STAGE 1: BUILDER - install all dependencies and compile any necessary components
 
-FROM python:3.6 AS builder
+FROM python:3.6-slim AS builder
 
 WORKDIR /app
 
