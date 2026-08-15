@@ -1,13 +1,13 @@
 # STAGE 1: BUILDER - install all dependencies and compile the frontend application (Angular). 
 
-FROM node:20 AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
 COPY package*.json ./
 
 # Download and install all Node dependencies
-RUN npm install
+RUN npm ci
 
 COPY . .
 

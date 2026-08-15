@@ -1,0 +1,100 @@
+name: CI/CD Pipeline
+
+on:
+  workflow_dispatch: # Allows manual trigger from Github UI
+  push:
+    branches: ["feature/ci-cd", "main"]
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # Job 1: Build container images and push to GHRC
+  build: 
+    runs-on: ubuntu-latest
+
+    strategy:
+      # Stop the workflow if an error occurs
+      fail-fast: true
+      # Use matrix for concurrency
+      matrix:
+        include:
+          - name: backend
+            context: ./conduit-backend
+            image: ghcr.io/${{ github.repository_owner }}/conduit-backend
+          - name: frontend
+            context: ./conduit-frontend
+            image: ghcr.io/${{ github.repository_owner }}/conduit-frontend
+          
+    steps:
+    # Clone the repo code onto the runner machine granting access to the ci-cd pipeline 
+    - name: Checkout Code
+      uses: actions/checkout@v7
+
+    - name: Login to GitHub Container Registry (GHRC)
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and Push Docker Images
+      uses: docker/build-push-action@v7
+      with:
+        context: ${{ matrix.context }}
+        push: true
+        tags: ${{ matrix.image }}:latest    
+
+  # Job 2: Deploy to remote VM via SSH
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v7
+
+      - name: SCP Compose File to the VM
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "~/app"
+
+
+      # SSH into VM, inject and set .env, pull images from GHRC, restart containers
+      - name: Execute Remote Deployment Commands
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VM_HOST }}
+          username: ${{ secrets.VM_USER }}
+          key: ${{ secrets.VM_SSH_KEY }}
+          script: |
+            mkdir -p ~/app
+            cd ~/app
+            
+            # 1. Write production .env file from secrets
+            cat << 'EOF' > .env
+            ${{ secrets.ENV_FILE }}
+            EOF
+            
+            # 2. Dynamically set and append the lowercased repo owner to .env
+            GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+            echo "GITHUB_REPOSITORY_OWNER=${GITHUB_REPOSITORY_OWNER}" >> .env
+
+            # 3. Dynamically append the Allowed Hosts including the production address
+            echo "ALLOWED_HOSTS=${{ secrets.VM_HOST }},localhost,127.0.0.1,backend" >> .env
+
+            # 4. Restrict permissions
+            chmod 600 .env
+
+            # 5. Login Docker to GHCR from the VM using GITHUB_TOKEN
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # 6. Pull new images and restart services
+            docker compose pull
+            docker compose down
+            docker compose up -d --remove-orphans
+      

@@ -18,9 +18,7 @@ services:
 
 
   backend:
-    build:
-      context: ./conduit-backend
-      dockerfile: backend.Dockerfile
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/conduit-backend:latest
     container_name: backend_conduit
     restart: unless-stopped
     env_file:
@@ -38,9 +36,7 @@ services:
         condition: service_healthy
 
   frontend:
-    build:
-      context: ./conduit-frontend
-      dockerfile: frontend.Dockerfile
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/conduit-frontend:latest
     container_name: frontend_conduit
     restart: unless-stopped
     ports:
