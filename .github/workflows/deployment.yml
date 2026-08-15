@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   workflow_dispatch: # Allows manual trigger from Github UI
   push:
-    branches: ["feature/ci-cd", "main"]
+    branches: ["feature/ci-cd", "dev"]
 
 permissions:
   contents: read
