@@ -18,8 +18,8 @@ services:
 
 
   backend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/conduit-backend:latest
-    container_name: backend_conduit
+    image: ghcr.io/${GITHUB_REPOSITORY}/conduit-backend:${IMAGE_TAG:-latest}
+    container_name: conduit-backend
     restart: unless-stopped
     env_file:
       - .env
@@ -27,17 +27,17 @@ services:
       - conduit_network
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/admin/"]
-      interval: 30s
-      timeout: 10s
+      interval: 5s
+      timeout: 3s
       retries: 3
-      start_period: 60s # give some time so that the entrypoint.sh is done
+      start_period: 15s # give some time so that the entrypoint.sh is done
     depends_on:
       db:
         condition: service_healthy
 
   frontend:
-    image: ghcr.io/${GITHUB_REPOSITORY_OWNER}/conduit-frontend:latest
-    container_name: frontend_conduit
+    image: ghcr.io/${GITHUB_REPOSITORY}/conduit-frontend:${IMAGE_TAG:-latest}
+    container_name: conduit-frontend
     restart: unless-stopped
     ports:
       - "8282:80"

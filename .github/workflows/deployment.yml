@@ -22,15 +22,17 @@ jobs:
         include:
           - name: backend
             context: ./conduit-backend
-            image: ghcr.io/${{ github.repository_owner }}/conduit-backend
           - name: frontend
             context: ./conduit-frontend
-            image: ghcr.io/${{ github.repository_owner }}/conduit-frontend
           
     steps:
     # Clone the repo code onto the runner machine granting access to the ci-cd pipeline 
     - name: Checkout Code
       uses: actions/checkout@v7
+
+    # In case the repo name has uppercase letters
+    - name: Set Lowercase Repository Name
+      run: echo "REPO_LOWER=${GITHUB_REPOSITORY@L}" >> $GITHUB_ENV
 
     - name: Login to GitHub Container Registry (GHRC)
       uses: docker/login-action@v4
@@ -44,15 +46,21 @@ jobs:
       with:
         context: ${{ matrix.context }}
         push: true
-        tags: ${{ matrix.image }}:latest    
+        tags: |
+          ghcr.io/${{ env.REPO_LOWER }}/conduit-${{ matrix.name }}:latest
+          ghcr.io/${{ env.REPO_LOWER }}/conduit-${{ matrix.name }}:${{ github.sha }}
 
-  # Job 2: Deploy to remote VM via SSH
+  # Job 2: Deploy to remote VM via SSH pulling Images from GHRC
   deploy:
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
+
+      # Set lowercase for this runner
+      - name: Set Lowercase Repository Name
+        run: echo "REPO_LOWER=${GITHUB_REPOSITORY@L}" >> $GITHUB_ENV
 
       - name: SCP Compose File to the VM
         uses: appleboy/scp-action@v1.0.0
@@ -63,9 +71,8 @@ jobs:
           source: "docker-compose.yml"
           target: "~/app"
 
-
-      # SSH into VM, inject and set .env, pull images from GHRC, restart containers
-      - name: Execute Remote Deployment Commands
+      # SSH into VM, inject and set .env, pull images from GHRC, restart containers, healtcheck
+      - name: Deploy and Auto-Rollback
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VM_HOST }}
@@ -74,27 +81,39 @@ jobs:
           script: |
             mkdir -p ~/app
             cd ~/app
-            
-            # 1. Write production .env file from secrets
+
+            # 1. Save current running tags for potential rollback
+            WORKING_TAG=$(docker inspect --format='{{.Config.Image}}' conduit-backend 2>/dev/null | cut -d':' -f2)
+            WORKING_TAG=${WORKING_TAG:-latest}
+
+            # 2. Write production .env file from secrets
             cat << 'EOF' > .env
             ${{ secrets.ENV_FILE }}
             EOF
             
-            # 2. Dynamically set and append the lowercased repo owner to .env
-            GITHUB_REPOSITORY_OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-            echo "GITHUB_REPOSITORY_OWNER=${GITHUB_REPOSITORY_OWNER}" >> .env
+            # 3. Append lowercased repo using env.REPO_LOWER
+            echo "GITHUB_REPOSITORY=${{ env.REPO_LOWER }}" >> .env
 
-            # 3. Dynamically append the Allowed Hosts including the production address
+            # 4. Dynamically append the Allowed Hosts including the production address and restrict permits
             echo "ALLOWED_HOSTS=${{ secrets.VM_HOST }},localhost,127.0.0.1,backend" >> .env
-
-            # 4. Restrict permissions
             chmod 600 .env
 
             # 5. Login Docker to GHCR from the VM using GITHUB_TOKEN
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # 6. Pull new images and restart services
-            docker compose pull
-            docker compose down
-            docker compose up -d --remove-orphans
-      
+            # 6. Attempt Deployment using the explicit commit SHA
+            echo "Pulling new images..."
+            IMAGE_TAG=${{ github.sha }} docker compose pull
+
+            echo "Starting deployment..."
+            if ! IMAGE_TAG=${{ github.sha }} docker compose up -d --wait --remove-orphans; then
+              echo "Deployment failed! Auto-rollback to working tag $WORKING_TAG..."
+              
+              # Execute Rollback
+              IMAGE_TAG=$WORKING_TAG docker compose up -d --remove-orphans
+              
+              # Fail the Github Action Job
+              exit 1
+            else
+              echo "No problems detected! Deployment successful."
+            fi
