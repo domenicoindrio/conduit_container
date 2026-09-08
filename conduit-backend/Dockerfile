@@ -1,6 +1,6 @@
 # STAGE 1: BUILDER - install all dependencies and compile any necessary components
 
-FROM python:3.6-slim AS builder
+FROM python:3.7-slim AS builder
 
 WORKDIR /app
 
@@ -20,7 +20,7 @@ COPY . .
 
 # STAGE 2: RUNTIME - Start with a fresh clean image and run the application with only the necessary components
 
-FROM python:3.6-slim
+FROM python:3.7-slim
 
 WORKDIR /app
 
